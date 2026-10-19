@@ -17,6 +17,9 @@ data and keep tplot variables in memory between calls. The skill carries the kno
 analysis loop, tplot conventions, verified loader calls, the operation catalog and the plot
 options. Each agent package bundles both in the layout that agent expects.
 
+Trying it for the first time? Start with [TRIAL.md](TRIAL.md): install, three prompts to try,
+and how to report what you find.
+
 ## Install
 
 | Agent | Steps |
