@@ -1,0 +1,33 @@
+[project]
+name = "spedas-tplot-mcp"
+version = "0.2.0"
+description = "MCP server that drives PySPEDAS tplot: load mission data, inspect and transform tplot variables, and plot them."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Zesen Huang" }]
+dependencies = [
+    "pyspedas>=2.2",
+    "mcp>=1.26,<2",
+    "matplotlib",
+]
+
+[project.scripts]
+spedas-tplot-mcp = "spedas_tplot_mcp.server:main"
+spedas-tplot-web = "spedas_tplot_mcp.web:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/spedas_tplot_mcp"]
+
+[tool.uv]
+# netcdf4 1.7.5 ships macOS 15 wheels only; older macOS would build from source and fail.
+constraint-dependencies = ["netcdf4<1.7.5; sys_platform == 'darwin'"]

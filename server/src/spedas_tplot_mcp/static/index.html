@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tplot workbench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<style>
+:root {
+  --paper: #eef1f4;
+  --sheet: #ffffff;
+  --ink: #1d232a;
+  --muted: #5b6672;
+  --rule: #d5dbe1;
+  --accent: #1f4fd1;
+  --accent-soft: #e3eafb;
+  --agent: #b7791f;
+  --agent-soft: #f7ecd9;
+  --bad: #c0362c;
+  --sans: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #161b21; --sheet: #1c232b; --ink: #e3e8ed; --muted: #93a0ad; --rule: #2c3640;
+    --accent: #6d95f2; --accent-soft: #233150; --agent: #e0a243; --agent-soft: #3a2f1c; --bad: #ef6f62;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #161b21; --sheet: #1c232b; --ink: #e3e8ed; --muted: #93a0ad; --rule: #2c3640;
+  --accent: #6d95f2; --accent-soft: #233150; --agent: #e0a243; --agent-soft: #3a2f1c; --bad: #ef6f62;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--paper); color: var(--ink); font: 14px/1.45 var(--sans);
+  display: grid; grid-template-rows: auto auto 1fr auto; height: 100vh; overflow: hidden;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button {
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 11px;
+  cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type=text], select, textarea {
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 8px;
+}
+textarea { font-family: var(--mono); font-size: 12.5px; width: 100%; resize: vertical; }
+
+/* masthead */
+header {
+  display: flex; align-items: baseline; gap: 18px; padding: 12px 18px 8px;
+}
+header h1 { font-size: 19px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+header .session { color: var(--muted); font-size: 13px; }
+header .live { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--rule); transition: background .2s; }
+.pulse.on { background: var(--agent); }
+.pulse.down { background: var(--bad); }
+
+/* time strip: the spine of the page, like tplot's shared time axis */
+.timestrip {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 18px;
+  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); background: var(--sheet);
+}
+.timestrip input[type=text] { font-family: var(--mono); font-size: 13px; width: 205px; }
+.timestrip .to { color: var(--muted); }
+.timestrip .spacer { flex: 1; }
+.timestrip label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
+.savedlink { font-size: 13px; color: var(--accent); }
+
+main { display: grid; grid-template-columns: 300px 1fr; min-height: 0; }
+
+/* variable list */
+aside { border-right: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0; }
+aside .filter { padding: 10px 12px; }
+aside .filter input { width: 100%; }
+#vars { list-style: none; margin: 0; padding: 0 0 12px; overflow-y: auto; flex: 1; }
+#vars li {
+  display: grid; grid-template-columns: 20px 1fr; gap: 2px 6px; padding: 6px 12px;
+  border-left: 3px solid transparent; cursor: default;
+}
+#vars li:hover { background: var(--accent-soft); }
+#vars li.fresh { border-left-color: var(--agent); background: var(--agent-soft); }
+#vars li input { margin: 3px 0 0; }
+#vars .vname { font-family: var(--mono); font-size: 12.5px; word-break: break-all; cursor: pointer; }
+#vars .vname:hover { color: var(--accent); }
+#vars .vmeta { grid-column: 2; color: var(--muted); font-size: 12px; }
+.empty { color: var(--muted); padding: 14px 12px; }
+
+/* panel stack */
+#stack { position: relative; min-height: 0; overflow: auto; background: var(--sheet); }
+#plot { width: 100%; }
+#stackempty { padding: 60px 40px; max-width: 560px; color: var(--muted); }
+#stackempty h2 { color: var(--ink); font-size: 17px; margin: 0 0 8px; }
+#panelbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--rule); }
+#panelbar:empty { display: none; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--rule); border-radius: 6px;
+  padding: 2px 4px 2px 8px; font-family: var(--mono); font-size: 12px; background: var(--paper);
+}
+.chip button { border: 0; padding: 0 5px; background: transparent; color: var(--muted); }
+.chip button:hover { color: var(--accent); }
+
+/* drawer */
+footer { border-top: 1px solid var(--rule); background: var(--sheet); display: flex; flex-direction: column; }
+.tabs { display: flex; gap: 2px; padding: 0 12px; }
+.tabs button {
+  border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent;
+  padding: 8px 12px; color: var(--muted);
+}
+.tabs button[aria-selected=true] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.tabs .count { color: var(--agent); font-weight: 600; }
+.tabs .grip { margin-left: auto; color: var(--muted); }
+.pane { display: none; height: 240px; overflow: auto; padding: 10px 16px 14px; border-top: 1px solid var(--rule); }
+.pane.open { display: block; }
+footer.closed .pane { display: none; }
+
+#feed { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+#feed li { display: grid; grid-template-columns: 70px 64px 1fr; gap: 10px; padding: 4px 0 4px 10px; border-left: 3px solid var(--rule); }
+#feed li.agent { border-left-color: var(--agent); }
+#feed li.web { border-left-color: var(--accent); }
+#feed li.err .what { color: var(--bad); }
+#feed .when { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+#feed .who { color: var(--muted); }
+#feed li.agent .who { color: var(--agent); font-weight: 600; }
+#feed .tool { font-family: var(--mono); font-size: 12.5px; }
+#feed .what { color: var(--muted); }
+
+.form { display: grid; grid-template-columns: 110px minmax(0, 560px); gap: 8px 12px; align-items: start; }
+.form label { color: var(--muted); padding-top: 6px; }
+.form .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.form .hint { color: var(--muted); font-size: 12.5px; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+pre.doc, pre.out {
+  margin: 0; white-space: pre-wrap; font: 12px/1.5 var(--mono); color: var(--ink);
+  background: var(--paper); border-radius: 6px; padding: 10px; max-height: 210px; overflow: auto;
+}
+pre.out.bad { color: var(--bad); }
+dl.kv { display: grid; grid-template-columns: 150px 1fr; gap: 3px 12px; margin: 0; font-size: 13px; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; font-family: var(--mono); font-size: 12.5px; word-break: break-word; }
+
+@media (max-width: 820px) {
+  main { grid-template-columns: 1fr; grid-template-rows: 180px 1fr; }
+  aside { border-right: 0; border-bottom: 1px solid var(--rule); }
+  .cols { grid-template-columns: 1fr; }
+  .form { grid-template-columns: 1fr; }
+  .timestrip input[type=text] { width: 170px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>tplot workbench</h1>
+  <span class="session" id="session">connecting…</span>
+  <span class="live"><span class="pulse" id="pulse"></span><span id="livetext">waiting for the session</span></span>
+</header>
+
+<div class="timestrip">
+  <input type="text" id="t0" placeholder="2015-10-16/13:00:00" aria-label="Start time">
+  <span class="to">to</span>
+  <input type="text" id="t1" placeholder="2015-10-16/13:10:00" aria-label="End time">
+  <button id="apply">Apply range</button>
+  <button id="fullrange">Full range</button>
+  <span class="spacer"></span>
+  <label><input type="checkbox" id="follow" checked> Follow the agent</label>
+  <button id="savepng">Save as tplot PNG</button>
+  <a class="savedlink" id="savedlink" target="_blank" rel="noopener"></a>
+</div>
+
+<main>
+  <aside>
+    <div class="filter"><input type="text" id="filter" placeholder="Filter variables (e.g. mms1_*b_gse*)" aria-label="Filter variables"></div>
+    <ul id="vars"></ul>
+  </aside>
+  <section id="stack">
+    <div id="panelbar"></div>
+    <div id="stackempty">
+      <h2>No panels yet</h2>
+      <p>Tick variables on the left to stack them here, or load data from the Load data tab below.
+      When the agent plots something, it appears here too, with zoom and hover.</p>
+    </div>
+    <div id="plot"></div>
+  </section>
+</main>
+
+<footer id="drawer">
+  <div class="tabs" role="tablist">
+    <button role="tab" data-pane="activity" aria-selected="true">Activity <span class="count" id="unseen"></span></button>
+    <button role="tab" data-pane="load" aria-selected="false">Load data</button>
+    <button role="tab" data-pane="fn" aria-selected="false">Run a function</button>
+    <button role="tab" data-pane="details" aria-selected="false">Details</button>
+    <button role="tab" data-pane="script" aria-selected="false">Script</button>
+    <button class="grip" id="grip" aria-label="Collapse the drawer">Hide</button>
+  </div>
+
+  <div class="pane open" id="pane-activity"><ul id="feed"></ul></div>
+
+  <div class="pane" id="pane-load">
+    <div class="cols">
+      <div class="form">
+        <label for="mission">Mission</label><select id="mission"></select>
+        <label for="instrument">Loader</label>
+        <div class="row"><select id="instrument"></select><button id="loaderdoc">Show its options</button></div>
+        <label>Time range</label><div class="hint">Uses the range in the strip above.</div>
+        <label for="loadopts">Options</label>
+        <div><textarea id="loadopts" rows="3">{"probe": "1", "data_rate": "srvy"}</textarea>
+          <div class="hint">JSON keyword arguments for the loader, e.g. probe, level, datatype, varformat.</div></div>
+        <span></span><div class="row"><button class="primary" id="load">Load data</button><span id="loadmsg" class="hint"></span></div>
+      </div>
+      <pre class="doc" id="loaddoc">Pick a loader and press "Show its options" to read its keywords.</pre>
+    </div>
+  </div>
+
+  <div class="pane" id="pane-fn">
+    <div class="cols">
+      <div class="form">
+        <label for="fnname">Function</label>
+        <div class="row"><select id="fnname"></select><button id="fndoc">Show its signature</button></div>
+        <label for="fnargs">Arguments</label>
+        <div><textarea id="fnargs" rows="2">[]</textarea><div class="hint">JSON list, e.g. ["mms1_fgm_b_gse_srvy_l2_bvec"]</div></div>
+        <label for="fnkwargs">Keywords</label>
+        <div><textarea id="fnkwargs" rows="2">{}</textarea><div class="hint">JSON object, e.g. {"res": 60, "newname": "b_1min"}</div></div>
+        <span></span><div class="row"><button class="primary" id="runfn">Run</button><span id="fnmsg" class="hint"></span></div>
+      </div>
+      <pre class="doc" id="fnout">Functions run on the shared session. New variables appear in the list on the left.</pre>
+    </div>
+  </div>
+
+  <div class="pane" id="pane-details"><div id="details" class="empty">Click a variable name to see its metadata.</div></div>
+  <div class="pane" id="pane-script">
+    <div class="row" style="margin-bottom:8px"><button id="copyscript">Copy script</button> <span class="hint" id="scriptpath"></span></div>
+    <pre class="out" id="script"></pre>
+  </div>
+</footer>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const state = {
+  vars: [], version: -1, seq: 0, panels: [], trange: null, data: null,
+  fresh: new Set(), unseen: 0, missions: {}, pulseTimer: null, zoomTimer: null, drawing: false,
+};
+
+// ---------- api ----------
+async function get(path) {
+  const r = await fetch(path);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+async function tool(name, args) {
+  const r = await fetch(`/api/tool/${name}`, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(args || {}),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+// ---------- time helpers ----------
+const toStrip = (iso) => iso ? iso.replace("T", "/").replace(/\.\d+$/, "").slice(0, 19) : "";
+const toIso = (s) => s.trim().replace("/", "T");
+function stripRange() {
+  const a = $("t0").value.trim(), b = $("t1").value.trim();
+  return a && b ? [a, b] : null;
+}
+function setStrip(r) {
+  if (!r) return;
+  $("t0").value = toStrip(r[0]);
+  $("t1").value = toStrip(r[1]);
+}
+
+// ---------- variables ----------
+function describeVar(v) {
+  const bits = [];
+  if (v.type === "pseudo") bits.push(`overplot of ${v.components.length}`);
+  else {
+    bits.push(v.type === "timeseries" ? "series" : v.type);
+    if (v.shape) bits.push(v.shape.join("×"));
+    if (v.units) bits.push(v.units);
+    if (v.coord_sys) bits.push(v.coord_sys);
+  }
+  return bits.join(", ");
+}
+function globToRe(g) {
+  const esc = g.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
+  return new RegExp(g.includes("*") || g.includes("?") ? `^${esc}$` : esc, "i");
+}
+function renderVars() {
+  const ul = $("vars");
+  const f = $("filter").value.trim();
+  const re = f ? globToRe(f) : null;
+  const shown = state.vars.filter((v) => !re || re.test(v.name));
+  ul.innerHTML = "";
+  if (!state.vars.length) {
+    ul.innerHTML = `<li class="empty">No tplot variables yet. Load some data below, or ask the agent to.</li>`;
+    return;
+  }
+  for (const v of shown) {
+    const li = document.createElement("li");
+    if (state.fresh.has(v.name)) li.className = "fresh";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = state.panels.includes(v.name);
+    cb.setAttribute("aria-label", `Plot ${v.name}`);
+    cb.onchange = () => { cb.checked ? addPanel(v.name) : removePanel(v.name); };
+    const name = document.createElement("span");
+    name.className = "vname"; name.textContent = v.name; name.tabIndex = 0;
+    name.onclick = name.onkeydown = (e) => { if (e.type === "click" || e.key === "Enter") showDetails(v.name); };
+    const meta = document.createElement("span");
+    meta.className = "vmeta";
+    meta.textContent = describeVar(v);
+    if (v.start) meta.title = `${toStrip(v.start)} to ${toStrip(v.end)}`;
+    li.append(cb, name, meta);
+    ul.append(li);
+  }
+}
+async function refreshState() {
+  const s = await get("/api/state");
+  const before = new Set(state.vars.map((v) => v.name));
+  state.vars = s.variables;
+  if (state.version >= 0) for (const v of s.variables) if (!before.has(v.name)) state.fresh.add(v.name);
+  state.version = s.version;
+  $("session").textContent = `${s.variables.length} variable${s.variables.length === 1 ? "" : "s"} in this session`;
+  $("session").title = `Plots and exports go to ${s.output_dir}`;
+  // drop panels whose variables are gone
+  const names = new Set(s.variables.map((v) => v.name));
+  const kept = state.panels.filter((p) => names.has(p));
+  const changed = kept.length !== state.panels.length;
+  state.panels = kept;
+  renderVars();
+  return changed;
+}
+
+// ---------- panels ----------
+function addPanel(name) { if (!state.panels.includes(name)) { state.panels.push(name); draw(); } }
+function removePanel(name) { state.panels = state.panels.filter((p) => p !== name); draw(); renderVars(); }
+function movePanel(name, d) {
+  const i = state.panels.indexOf(name), j = i + d;
+  if (j < 0 || j >= state.panels.length) return;
+  [state.panels[i], state.panels[j]] = [state.panels[j], state.panels[i]];
+  draw();
+}
+function renderBar() {
+  const bar = $("panelbar");
+  bar.innerHTML = "";
+  state.panels.forEach((p, i) => {
+    const c = document.createElement("span");
+    c.className = "chip";
+    c.append(p);
+    const mk = (label, title, fn, off) => {
+      const b = document.createElement("button");
+      b.textContent = label; b.title = title; b.setAttribute("aria-label", `${title}: ${p}`);
+      b.disabled = !!off; b.onclick = fn; return b;
+    };
+    c.append(mk("↑", "Move up", () => movePanel(p, -1), i === 0),
+             mk("↓", "Move down", () => movePanel(p, 1), i === state.panels.length - 1),
+             mk("×", "Remove panel", () => removePanel(p)));
+    bar.append(c);
+  });
+}
+
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+async function draw(keepRange) {
+  renderBar();
+  $("stackempty").style.display = state.panels.length ? "none" : "block";
+  if (!state.panels.length) { Plotly.purge("plot"); return; }
+  const r = state.trange;
+  const q = new URLSearchParams({names: state.panels.join(","), max_points: 4000});
+  if (r) { q.set("t0", r[0]); q.set("t1", r[1]); }
+  let res;
+  try { res = await get(`/api/panels?${q}`); }
+  catch (e) { flash(`Could not draw: ${e.message}`, true); return; }
+  if (!r && res.full_range) setStrip(res.full_range);
+  render(res.panels, keepRange);
+}
+
+function render(panels, keepRange) {
+  const ink = css("--ink"), muted = css("--muted"), rule = css("--rule"), sheet = css("--sheet");
+  const n = panels.length, gap = 0.018;
+  const weights = panels.map((p) => p.options.panel_size || 1);
+  const total = weights.reduce((a, b) => a + b, 0);
+  const traces = [];
+  const layout = {
+    paper_bgcolor: sheet, plot_bgcolor: sheet, font: {family: css("--sans"), color: ink, size: 12},
+    margin: {l: 92, r: 110, t: 12, b: 44}, showlegend: false, hovermode: "x unified",
+    height: Math.max(320, 165 * n + 60), annotations: [], shapes: [],
+    // one time axis for the whole stack, drawn under the bottom panel (as tplot does)
+    xaxis: {type: "date", gridcolor: rule, linecolor: muted, ticks: "outside", tickcolor: muted, showline: false,
+            anchor: n === 1 ? "y" : `y${n}`, hoverformat: "%Y-%m-%d %H:%M:%S.%L"},
+  };
+  if (keepRange && state.xrange) layout.xaxis.range = state.xrange;
+  else if (state.trange) layout.xaxis.range = state.trange.map(toIso);
+  let top = 1;
+  panels.forEach((p, i) => {
+    const h = (1 - gap * (n - 1)) * weights[i] / total;
+    const dom = [Math.max(0, top - h), top];
+    top = dom[0] - gap;
+    const ax = i === 0 ? "y" : `y${i + 1}`, key = i === 0 ? "yaxis" : `yaxis${i + 1}`;
+    const o = p.options;
+    layout[key] = {
+      domain: dom, anchor: "x", gridcolor: rule, showline: false, ticks: "outside",
+      tickcolor: muted, zeroline: false, type: o.ylog ? "log" : "linear", automargin: false,
+      title: {text: o.ysubtitle ? `${o.ytitle}<br><span style="font-size:11px">${o.ysubtitle}</span>` : o.ytitle, font: {size: 12}},
+    };
+    if (o.yrange) layout[key].range = o.ylog ? o.yrange.map((v) => Math.log10(v)) : o.yrange;
+    const mid = (dom[0] + dom[1]) / 2;
+    layout.shapes.push({type: "rect", xref: "paper", yref: "paper", x0: 0, x1: 1, y0: dom[0], y1: dom[1],
+                        line: {color: muted, width: 1}, fillcolor: "rgba(0,0,0,0)", layer: "above"});
+    if (p.kind === "spec") {
+      traces.push({
+        type: "heatmap", x: p.x, y: p.y, z: p.z, xaxis: "x", yaxis: ax, colorscale: o.colormap,
+        zmin: p.zrange[0], zmax: p.zrange[1], zsmooth: false, hoverongaps: false, name: p.name,
+        colorbar: {y: mid, len: dom[1] - dom[0], thickness: 12, x: 1.01, outlinewidth: 0,
+                   tickfont: {size: 10}, tickprefix: o.zlog ? "1e" : "",
+                   title: {text: o.ztitle || "", side: "right", font: {size: 11}}},
+        hovertemplate: `%{y:.3g}: ${o.zlog ? "1e" : ""}%{z:.3g}<extra>${p.name}</extra>`,
+      });
+      for (const t of p.overlay || []) traces.push(lineTrace(t, ax));
+    } else if (p.kind === "line") {
+      for (const t of p.traces) traces.push(lineTrace(t, ax));
+      if (p.show_legend) {
+        p.traces.forEach((t, k) => layout.annotations.push({
+          xref: "paper", yref: "paper", x: 1.012, y: dom[1] - 0.012 - k * 0.034, xanchor: "left", yanchor: "top",
+          text: `<span style="color:${t.color || ink}">━</span> ${t.name}`, showarrow: false, font: {size: 11},
+        }));
+      }
+    } else {
+      layout.annotations.push({xref: "paper", yref: "paper", x: 0.5, y: mid, text: `${p.name}: no data in this range`,
+                               showarrow: false, font: {color: muted}});
+    }
+  });
+  state.drawing = true;
+  Plotly.react("plot", traces, layout, {displaylogo: false, responsive: true,
+    modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d"]}).then(() => { state.drawing = false; });
+  const plot = $("plot");
+  if (!plot._wired) {
+    plot._wired = true;
+    plot.on("plotly_relayout", (ev) => {
+      if (state.drawing) return;
+      const a = ev["xaxis.range[0]"], b = ev["xaxis.range[1]"];
+      if (a && b) {
+        state.xrange = [a, b];
+        clearTimeout(state.zoomTimer);
+        state.zoomTimer = setTimeout(() => zoomTo([a, b]), 350);
+      } else if (ev["xaxis.autorange"]) { state.xrange = null; state.trange = null; draw(); }
+    });
+  }
+}
+function lineTrace(t, ax) {
+  return {type: "scatter", mode: "lines", x: t.x, y: t.y, name: t.name, xaxis: "x", yaxis: ax,
+          line: {width: 1, color: t.color || css("--ink")}, connectgaps: false};
+}
+async function zoomTo(r) {
+  const s = (x) => x.replace(" ", "/").slice(0, 23);
+  state.trange = [s(r[0]), s(r[1])];
+  setStrip(state.trange);
+  await draw(true);  // refetch the window at full detail
+}
+
+// ---------- details / script ----------
+async function showDetails(name) {
+  openTab("details");
+  try {
+    const d = await get(`/api/variable?name=${encodeURIComponent(name)}`);
+    const rows = [["name", d.name], ["type", d.type], ["shape", d.shape && d.shape.join(" × ")],
+      ["time span", d.start && `${toStrip(d.start)} to ${toStrip(d.end)}`], ["cadence", d.cadence_s && `${d.cadence_s.median} s (largest gap ${d.cadence_s.max_gap} s)`],
+      ["units", d.units], ["coordinates", d.coord_sys], ["components", d.components && d.components.join(", ")]];
+    for (const [k, v] of Object.entries(d.cdf_attrs || {})) rows.push([k, v]);
+    for (const [k, v] of Object.entries(d.plot || {})) rows.push([`plot ${k}`, JSON.stringify(v)]);
+    if (Array.isArray(d.stats)) d.stats.forEach((s, i) => rows.push([`component ${i}`, `min ${fmt(s.min)}, max ${fmt(s.max)}, mean ${fmt(s.mean)}, NaN ${(100 * s.nan_fraction).toFixed(1)}%`]));
+    else if (d.stats) rows.push(["values", `min ${fmt(d.stats.min)}, max ${fmt(d.stats.max)}, NaN ${(100 * d.stats.nan_fraction).toFixed(1)}%`]);
+    const dl = document.createElement("dl"); dl.className = "kv";
+    for (const [k, v] of rows) if (v !== undefined && v !== null && v !== "") {
+      const dt = document.createElement("dt"); dt.textContent = k;
+      const dd = document.createElement("dd"); dd.textContent = v;
+      dl.append(dt, dd);
+    }
+    $("details").replaceChildren(dl);
+    $("details").className = "";
+  } catch (e) { $("details").textContent = e.message; }
+}
+const fmt = (x) => x === null || x === undefined ? "n/a" : Math.abs(x) >= 1e4 || (Math.abs(x) < 1e-2 && x !== 0) ? x.toExponential(3) : +x.toFixed(3);
+async function refreshScript() {
+  try {
+    const r = await tool("get_script", {});
+    $("script").textContent = r.result.script;
+    $("scriptpath").textContent = r.result.path;
+  } catch (e) { $("script").textContent = e.message; }
+}
+
+// ---------- activity feed ----------
+const AGENT_NAME = "agent";
+function feedItem(e) {
+  const li = document.createElement("li");
+  li.className = `${e.source}${e.ok ? "" : " err"}`;
+  const when = new Date(e.time * 1000).toLocaleTimeString([], {hour12: false});
+  const what = e.ok ? e.summary : `failed: ${e.summary}`;
+  li.innerHTML = `<span class="when"></span><span class="who"></span><span><span class="tool"></span> <span class="what"></span></span>`;
+  li.querySelector(".when").textContent = when;
+  li.querySelector(".who").textContent = e.source === AGENT_NAME ? "Agent" : "You";
+  li.querySelector(".tool").textContent = e.tool;
+  li.querySelector(".what").textContent = what || "";
+  return li;
+}
+function flash(msg, bad) {
+  $("livetext").textContent = msg;
+  $("pulse").className = bad ? "pulse down" : "pulse";
+}
+function pulse() {
+  $("pulse").className = "pulse on";
+  clearTimeout(state.pulseTimer);
+  state.pulseTimer = setTimeout(() => { $("pulse").className = "pulse"; }, 2500);
+}
+async function poll() {
+  try {
+    const r = await get(`/api/events?since=${state.seq}`);
+    const feed = $("feed");
+    let agentPlot = null;
+    for (const e of r.events) {
+      feed.prepend(feedItem(e));
+      if (e.source === AGENT_NAME) {
+        pulse();
+        $("livetext").textContent = `Agent ran ${e.tool}`;
+        if (!isOpen("activity")) state.unseen++;
+        if (e.tool === "plot" && e.ok) agentPlot = e;
+      }
+    }
+    while (feed.children.length > 300) feed.lastChild.remove();
+    $("unseen").textContent = state.unseen ? state.unseen : "";
+    state.seq = r.seq;
+    if (r.version !== state.version) {
+      await refreshState();
+      if (isOpen("script")) refreshScript();
+      if (!agentPlot && state.panels.length) draw(true);
+    }
+    if (agentPlot && $("follow").checked && agentPlot.result.panels) {
+      state.panels = agentPlot.result.panels.slice();
+      const tr = agentPlot.args.trange;
+      state.trange = Array.isArray(tr) ? tr : null;
+      state.xrange = null;
+      if (state.trange) setStrip(state.trange);
+      renderVars();
+      draw();
+    }
+    if (!r.events.length && $("pulse").className === "pulse down") flash("connected");
+  } catch (e) {
+    flash("lost the session; is the MCP server still running?", true);
+  }
+  setTimeout(poll, 1200);
+}
+
+// ---------- tabs ----------
+function isOpen(name) { return $(`pane-${name}`).classList.contains("open") && !$("drawer").classList.contains("closed"); }
+function openTab(name) {
+  $("drawer").classList.remove("closed");
+  $("grip").textContent = "Hide";
+  document.querySelectorAll(".tabs [data-pane]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.pane === name)));
+  document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("open", p.id === `pane-${name}`));
+  if (name === "activity") { state.unseen = 0; $("unseen").textContent = ""; }
+  if (name === "script") refreshScript();
+}
+document.querySelectorAll(".tabs [data-pane]").forEach((b) => b.onclick = () => openTab(b.dataset.pane));
+$("grip").onclick = () => {
+  const d = $("drawer"); d.classList.toggle("closed");
+  $("grip").textContent = d.classList.contains("closed") ? "Show" : "Hide";
+};
+
+// ---------- load data ----------
+async function initLoaders() {
+  try {
+    const r = await tool("list_loaders", {});
+    state.missions = r.result.missions;
+    const sel = $("mission");
+    sel.innerHTML = Object.keys(state.missions).map((m) => `<option>${m}</option>`).join("");
+    sel.value = state.missions.mms ? "mms" : sel.options[0].value;
+    fillInstruments();
+  } catch (e) { $("loaddoc").textContent = e.message; }
+}
+function fillInstruments() {
+  const m = $("mission").value;
+  $("instrument").innerHTML = (state.missions[m] || []).map((i) => `<option>${i}</option>`).join("");
+  if (m === "mms" && state.missions.mms.includes("fgm")) $("instrument").value = "fgm";
+}
+$("mission").onchange = fillInstruments;
+$("loaderdoc").onclick = async () => {
+  try {
+    const r = await tool("describe_function", {name: `${$("mission").value}.${$("instrument").value}`, max_doc: 8000});
+    $("loaddoc").textContent = `${r.result.name}${r.result.signature}\n\n${r.result.doc}`;
+  } catch (e) { $("loaddoc").textContent = e.message; }
+};
+$("load").onclick = async () => {
+  const tr = stripRange();
+  if (!tr) { $("loadmsg").textContent = "Set a start and end time in the strip above first."; return; }
+  let opts;
+  try { opts = JSON.parse($("loadopts").value || "{}"); }
+  catch (e) { $("loadmsg").textContent = `Options are not valid JSON: ${e.message}`; return; }
+  $("load").disabled = true; $("loadmsg").textContent = "Loading…";
+  try {
+    const r = await tool("load_data", {mission: $("mission").value, instrument: $("instrument").value, trange: tr, options: opts});
+    $("loadmsg").textContent = `Loaded ${r.result.loaded} variables.`;
+    $("loaddoc").textContent = (r.result.names || []).join("\n") + (r.log ? `\n\n${r.log}` : "");
+  } catch (e) { $("loadmsg").textContent = "Load failed; see the right-hand box."; $("loaddoc").textContent = e.message; }
+  finally { $("load").disabled = false; }
+};
+
+// ---------- functions ----------
+async function initFunctions() {
+  try {
+    const r = await tool("list_operations", {});
+    const sel = $("fnname");
+    sel.innerHTML = Object.entries(r.result).map(([cat, fns]) =>
+      `<optgroup label="${cat.replace("_", " ")}">` + Object.keys(fns).map((f) => `<option>${f}</option>`).join("") + "</optgroup>").join("");
+    sel.value = "avg_data";
+  } catch (e) { $("fnout").textContent = e.message; }
+}
+$("fndoc").onclick = async () => {
+  try {
+    const r = await tool("describe_function", {name: $("fnname").value, max_doc: 8000});
+    $("fnout").textContent = `${r.result.name}${r.result.signature}\n\n${r.result.doc}`;
+  } catch (e) { $("fnout").textContent = e.message; }
+};
+$("runfn").onclick = async () => {
+  let args, kwargs;
+  try { args = JSON.parse($("fnargs").value || "[]"); kwargs = JSON.parse($("fnkwargs").value || "{}"); }
+  catch (e) { $("fnmsg").textContent = `Not valid JSON: ${e.message}`; return; }
+  $("runfn").disabled = true; $("fnmsg").textContent = "Running…";
+  try {
+    const r = await tool("call_function", {function: $("fnname").value, args, kwargs});
+    const made = (r.result.created || []).concat(r.result.replaced || []);
+    $("fnmsg").textContent = made.length ? `Made ${made.join(", ")}.` : "Done.";
+    $("fnout").textContent = JSON.stringify(r.result.returned, null, 1) + (r.log ? `\n\n${r.log}` : "");
+  } catch (e) { $("fnmsg").textContent = "Failed; see the right-hand box."; $("fnout").textContent = e.message; }
+  finally { $("runfn").disabled = false; }
+};
+
+// ---------- time strip ----------
+$("apply").onclick = () => { const r = stripRange(); if (r) { state.trange = r; state.xrange = null; draw(); } };
+$("fullrange").onclick = () => { state.trange = null; state.xrange = null; draw(); };
+[$("t0"), $("t1")].forEach((el) => el.onkeydown = (e) => { if (e.key === "Enter") $("apply").click(); });
+$("filter").oninput = renderVars;
+$("savepng").onclick = async () => {
+  if (!state.panels.length) { flash("Add a panel first"); return; }
+  $("savepng").disabled = true;
+  try {
+    const r = await tool("plot", {variables: state.panels, trange: state.trange || null, return_image: false});
+    const a = $("savedlink");
+    a.textContent = r.result.path.split("/").pop();
+    a.href = r.result.url || "#";
+  } catch (e) { flash(`Save failed: ${e.message}`, true); }
+  finally { $("savepng").disabled = false; }
+};
+$("copyscript").onclick = () => navigator.clipboard.writeText($("script").textContent);
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => draw(true));
+
+// ---------- start ----------
+(async () => {
+  try {
+    await refreshState();
+    flash("connected");
+  } catch (e) { flash("cannot reach the session", true); }
+  initLoaders();
+  initFunctions();
+  poll();
+})();
+</script>
+</body>
+</html>

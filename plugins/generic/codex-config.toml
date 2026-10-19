@@ -1,0 +1,5 @@
+[mcp_servers.spedas-tplot]
+command = "uv"
+args = ["run", "--quiet", "--project", "/ABSOLUTE/PATH/TO/spedas-plugin/server", "spedas-tplot-mcp"]
+env_vars = ["SPEDAS_DATA_DIR", "SPEDAS_TPLOT_OUTPUT_DIR", "SPEDAS_TPLOT_ALLOW_EXEC", "PYSPEDAS_CONFIG_FILE", "SPEDAS_TPLOT_WEB", "SPEDAS_TPLOT_WEB_PORT"]
+startup_timeout_sec = 300

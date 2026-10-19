@@ -1,0 +1,27 @@
+{
+  "name": "spedas-plugin",
+  "owner": {
+    "name": "Zesen Huang",
+    "url": "https://github.com/spedas/spedas-plugin"
+  },
+  "metadata": {
+    "description": "SPEDAS tools for coding agents"
+  },
+  "plugins": [
+    {
+      "name": "spedas-tplot",
+      "source": "./plugins/claude-code/spedas-tplot",
+      "description": "PySPEDAS tplot for agents: load space-physics mission data into tplot variables, inspect, transform and plot them, and get a replayable PySPEDAS script.",
+      "version": "0.2.0",
+      "keywords": [
+        "spedas",
+        "pyspedas",
+        "tplot",
+        "heliophysics",
+        "space-physics",
+        "magnetosphere",
+        "mcp"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "name": "spedas-tplot",
+  "version": "0.2.0",
+  "description": "PySPEDAS tplot for agents: load space-physics mission data into tplot variables, inspect, transform and plot them, and get a replayable PySPEDAS script.",
+  "author": {
+    "name": "Zesen Huang",
+    "url": "https://github.com/spedas/spedas-plugin"
+  },
+  "license": "MIT",
+  "keywords": [
+    "spedas",
+    "pyspedas",
+    "tplot",
+    "heliophysics",
+    "space-physics",
+    "magnetosphere",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "SPEDAS tplot",
+    "shortDescription": "Load, transform and plot space-physics data with PySPEDAS tplot",
+    "longDescription": "PySPEDAS tplot for agents: load space-physics mission data into tplot variables, inspect, transform and plot them, and get a replayable PySPEDAS script.",
+    "developerName": "Zesen Huang",
+    "category": "Research",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Plot OMNI IMF Bz, solar wind speed and SYM-H for 2015-10-16",
+      "Load THEMIS-A FGM for 2015-10-16 08:00-09:00 and plot B in GSM",
+      "Show the MMS1 ion energy spectrogram and density for 2015-10-16 13:00-13:10"
+    ]
+  }
+}

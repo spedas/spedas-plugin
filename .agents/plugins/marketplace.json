@@ -1,0 +1,20 @@
+{
+  "name": "spedas-plugin",
+  "interface": {
+    "displayName": "SPEDAS"
+  },
+  "plugins": [
+    {
+      "name": "spedas-tplot",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex/spedas-tplot"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Research"
+    }
+  ]
+}

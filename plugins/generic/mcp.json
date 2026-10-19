@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "spedas-tplot": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--quiet",
+        "--project",
+        "/ABSOLUTE/PATH/TO/spedas-plugin/server",
+        "spedas-tplot-mcp"
+      ]
+    }
+  }
+}
