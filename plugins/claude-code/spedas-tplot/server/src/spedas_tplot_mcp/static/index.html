@@ -6,34 +6,35 @@
 <title>tplot workbench</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
 <style>
+/* Chart paper, ink, and two pens: cobalt for you, sodium amber for the agent. */
 :root {
-  --paper: #eef1f4;
-  --sheet: #ffffff;
-  --ink: #1d232a;
-  --muted: #5b6672;
-  --rule: #d5dbe1;
-  --accent: #1f4fd1;
-  --accent-soft: #e3eafb;
-  --agent: #b7791f;
-  --agent-soft: #f7ecd9;
+  --paper: #eef2f5; --sheet: #ffffff; --rail: #f7f9fb;
+  --ink: #17212b; --muted: #5d6b78; --faint: #8b97a3;
+  --rule: #d9e0e7; --hair: #e9eef2;
+  --accent: #2350d8; --accent-soft: #e7edfc;
+  --agent: #b86e0b; --agent-soft: #fbf1e1;
   --bad: #c0362c;
-  --sans: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #161b21; --sheet: #1c232b; --ink: #e3e8ed; --muted: #93a0ad; --rule: #2c3640;
-    --accent: #6d95f2; --accent-soft: #233150; --agent: #e0a243; --agent-soft: #3a2f1c; --bad: #ef6f62;
+    --paper: #0e141a; --sheet: #141c24; --rail: #111920;
+    --ink: #e3e9ef; --muted: #94a2af; --faint: #6c7a87;
+    --rule: #26323d; --hair: #1d2731;
+    --accent: #88a7ff; --accent-soft: #1d2a4a; --agent: #f0a43a; --agent-soft: #33280f; --bad: #ef6f62;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --paper: #161b21; --sheet: #1c232b; --ink: #e3e8ed; --muted: #93a0ad; --rule: #2c3640;
-  --accent: #6d95f2; --accent-soft: #233150; --agent: #e0a243; --agent-soft: #3a2f1c; --bad: #ef6f62;
+  --paper: #0e141a; --sheet: #141c24; --rail: #111920;
+  --ink: #e3e9ef; --muted: #94a2af; --faint: #6c7a87;
+  --rule: #26323d; --hair: #1d2731;
+  --accent: #88a7ff; --accent-soft: #1d2a4a; --agent: #f0a43a; --agent-soft: #33280f; --bad: #ef6f62;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -41,100 +42,123 @@ html, body { height: 100%; margin: 0; }
 body {
   background: var(--paper); color: var(--ink); font: 14px/1.45 var(--sans);
   display: grid; grid-template-rows: auto auto 1fr auto; height: 100vh; overflow: hidden;
+  font-feature-settings: "tnum" 1;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
 button {
-  background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 11px;
-  cursor: pointer;
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 12px;
+  cursor: pointer; font-weight: 500; transition: border-color .15s, background .15s;
 }
 button:hover { border-color: var(--accent); }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+button.quiet:hover { color: var(--accent); }
 button:disabled { opacity: .5; cursor: default; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 input[type=text], select, textarea {
-  background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 8px;
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 9px;
 }
+input[type=checkbox] { accent-color: var(--accent); }
 textarea { font-family: var(--mono); font-size: 12.5px; width: 100%; resize: vertical; }
 
 /* masthead */
-header {
-  display: flex; align-items: baseline; gap: 18px; padding: 12px 18px 8px;
-}
-header h1 { font-size: 19px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+header { display: flex; align-items: center; gap: 14px; padding: 10px 18px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { color: var(--accent); }
+header h1 { font-size: 17px; font-weight: 650; margin: 0; letter-spacing: -.01em; }
 header .session { color: var(--muted); font-size: 13px; }
 header .live { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
-.pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--rule); transition: background .2s; }
-.pulse.on { background: var(--agent); }
+.pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); transition: background .2s, box-shadow .2s; }
+.pulse.on { background: var(--agent); box-shadow: 0 0 0 4px var(--agent-soft); }
 .pulse.down { background: var(--bad); }
 
-/* time strip: the spine of the page, like tplot's shared time axis */
-.timestrip {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 18px;
-  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); background: var(--sheet);
-}
-.timestrip input[type=text] { font-family: var(--mono); font-size: 13px; width: 205px; }
-.timestrip .to { color: var(--muted); }
+/* the time bar: range fields, then an overview of the whole interval with the view as a window */
+.timebar { background: var(--sheet); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.timestrip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 9px 18px 6px; }
+.timestrip input[type=text] { font-family: var(--mono); font-size: 12.5px; width: 186px; }
+.timestrip .to { color: var(--faint); }
 .timestrip .spacer { flex: 1; }
-.timestrip label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
-.savedlink { font-size: 13px; color: var(--accent); }
+.toggle { display: inline-flex; gap: 7px; align-items: center; color: var(--muted); font-size: 13px; cursor: pointer; }
+.savedlink { font-size: 13px; color: var(--accent); font-family: var(--mono); }
+#overview { display: block; width: 100%; height: 52px; cursor: crosshair; touch-action: none; }
+#overview .trace { fill: none; stroke: var(--ink); stroke-width: 1; opacity: .7; }
+#overview .band { fill: var(--hair); }
+#overview .outside { fill: var(--paper); opacity: .72; }
+#overview .window { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+#overview .drag { fill: var(--accent); opacity: .12; stroke: var(--accent); stroke-dasharray: 3 3; }
+#overview .tick { stroke: var(--rule); }
+#overview text { font: 10.5px var(--mono); fill: var(--faint); }
 
-main { display: grid; grid-template-columns: 300px 1fr; min-height: 0; }
+main { display: grid; grid-template-columns: 296px 1fr; min-height: 0; }
 
-/* variable list */
-aside { border-right: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0; }
-aside .filter { padding: 10px 12px; }
+/* variables */
+aside { background: var(--rail); border-right: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0; }
+aside .filter { padding: 12px 12px 8px; }
 aside .filter input { width: 100%; }
+aside .count { padding: 0 14px 6px; color: var(--faint); font-size: 12px; }
 #vars { list-style: none; margin: 0; padding: 0 0 12px; overflow-y: auto; flex: 1; }
 #vars li {
-  display: grid; grid-template-columns: 20px 1fr; gap: 2px 6px; padding: 6px 12px;
-  border-left: 3px solid transparent; cursor: default;
+  display: grid; grid-template-columns: 18px 18px 1fr; gap: 1px 8px; align-items: center;
+  padding: 6px 12px 6px 11px; border-left: 3px solid transparent;
 }
 #vars li:hover { background: var(--accent-soft); }
+#vars li.on { border-left-color: var(--accent); }
 #vars li.fresh { border-left-color: var(--agent); background: var(--agent-soft); }
-#vars li input { margin: 3px 0 0; }
+#vars li input { margin: 0; }
+#vars .glyph { color: var(--faint); display: flex; }
+#vars li.on .glyph { color: var(--accent); }
 #vars .vname { font-family: var(--mono); font-size: 12.5px; word-break: break-all; cursor: pointer; }
-#vars .vname:hover { color: var(--accent); }
-#vars .vmeta { grid-column: 2; color: var(--muted); font-size: 12px; }
-.empty { color: var(--muted); padding: 14px 12px; }
+#vars .vname:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+#vars .vmeta { grid-column: 3; color: var(--muted); font-size: 12px; }
+.empty { color: var(--muted); padding: 14px 14px; }
 
 /* panel stack */
 #stack { position: relative; min-height: 0; overflow: auto; background: var(--sheet); }
 #plot { width: 100%; }
-#stackempty { padding: 60px 40px; max-width: 560px; color: var(--muted); }
-#stackempty h2 { color: var(--ink); font-size: 17px; margin: 0 0 8px; }
-#panelbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--rule); }
+#stackempty { padding: 56px 48px; max-width: 620px; color: var(--muted); }
+#stackempty h2 { color: var(--ink); font-size: 20px; font-weight: 650; margin: 0 0 10px; letter-spacing: -.01em; }
+#stackempty p { margin: 0 0 12px; }
+#stackempty blockquote {
+  margin: 0 0 10px; padding: 8px 12px; border-left: 3px solid var(--agent); background: var(--agent-soft);
+  color: var(--ink); border-radius: 0 7px 7px 0;
+}
+#panelbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 9px 14px; border-bottom: 1px solid var(--hair); }
 #panelbar:empty { display: none; }
 .chip {
-  display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--rule); border-radius: 6px;
-  padding: 2px 4px 2px 8px; font-family: var(--mono); font-size: 12px; background: var(--paper);
+  display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--rule); border-radius: 7px;
+  padding: 2px 3px 2px 0; font-family: var(--mono); font-size: 12px; background: var(--sheet);
 }
-.chip button { border: 0; padding: 0 5px; background: transparent; color: var(--muted); }
+.chip .n { color: var(--faint); padding: 0 6px 0 8px; border-right: 1px solid var(--hair); margin-right: 6px; }
+.chip button { border: 0; padding: 0 5px; background: transparent; color: var(--faint); font-weight: 400; }
 .chip button:hover { color: var(--accent); }
 
 /* drawer */
 footer { border-top: 1px solid var(--rule); background: var(--sheet); display: flex; flex-direction: column; }
-.tabs { display: flex; gap: 2px; padding: 0 12px; }
+.tabs { display: flex; gap: 4px; padding: 0 12px; }
 .tabs button {
   border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent;
-  padding: 8px 12px; color: var(--muted);
+  padding: 9px 10px 7px; color: var(--muted); font-weight: 500;
 }
 .tabs button[aria-selected=true] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
-.tabs .count { color: var(--agent); font-weight: 600; }
+.tabs .count { color: var(--agent); font-weight: 650; }
 .tabs .grip { margin-left: auto; color: var(--muted); }
-.pane { display: none; height: 240px; overflow: auto; padding: 10px 16px 14px; border-top: 1px solid var(--rule); }
+.pane { display: none; height: 240px; overflow: auto; padding: 12px 18px 14px; border-top: 1px solid var(--hair); }
 .pane.open { display: block; }
 footer.closed .pane { display: none; }
 
-#feed { list-style: none; margin: 0; padding: 0; font-size: 13px; }
-#feed li { display: grid; grid-template-columns: 70px 64px 1fr; gap: 10px; padding: 4px 0 4px 10px; border-left: 3px solid var(--rule); }
-#feed li.agent { border-left-color: var(--agent); }
-#feed li.web { border-left-color: var(--accent); }
+#feed { list-style: none; margin: 0; padding: 0 0 0 4px; font-size: 13px; }
+#feed li { display: grid; grid-template-columns: 14px 64px 56px 1fr; gap: 10px; align-items: baseline; padding: 3px 0; position: relative; }
+#feed li::before { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; border-left: 1px solid var(--hair); }
+#feed .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); position: relative; top: 1px; box-shadow: 0 0 0 3px var(--sheet); }
+#feed li.agent .dot { background: var(--agent); }
+#feed li.err .dot { background: var(--bad); }
 #feed li.err .what { color: var(--bad); }
-#feed .when { color: var(--muted); font-family: var(--mono); font-size: 12px; }
-#feed .who { color: var(--muted); }
-#feed li.agent .who { color: var(--agent); font-weight: 600; }
+#feed .when { color: var(--faint); font-family: var(--mono); font-size: 12px; }
+#feed .who { color: var(--accent); font-weight: 600; }
+#feed li.agent .who { color: var(--agent); }
 #feed .tool { font-family: var(--mono); font-size: 12.5px; }
 #feed .what { color: var(--muted); }
+#feed .times { color: var(--faint); font-family: var(--mono); font-size: 12px; }
 
 .form { display: grid; grid-template-columns: 110px minmax(0, 560px); gap: 8px 12px; align-items: start; }
 .form label { color: var(--muted); padding-top: 6px; }
@@ -143,53 +167,73 @@ footer.closed .pane { display: none; }
 .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
 pre.doc, pre.out {
   margin: 0; white-space: pre-wrap; font: 12px/1.5 var(--mono); color: var(--ink);
-  background: var(--paper); border-radius: 6px; padding: 10px; max-height: 210px; overflow: auto;
+  background: var(--paper); border-radius: 7px; padding: 10px 12px; max-height: 210px; overflow: auto;
 }
 pre.out.bad { color: var(--bad); }
-dl.kv { display: grid; grid-template-columns: 150px 1fr; gap: 3px 12px; margin: 0; font-size: 13px; }
+dl.kv { display: grid; grid-template-columns: 150px 1fr; gap: 4px 14px; margin: 0; font-size: 13px; }
 dl.kv dt { color: var(--muted); }
 dl.kv dd { margin: 0; font-family: var(--mono); font-size: 12.5px; word-break: break-word; }
 
 @media (max-width: 820px) {
-  main { grid-template-columns: 1fr; grid-template-rows: 180px 1fr; }
+  /* small screens: one scrolling page instead of fixed regions */
+  body { display: block; height: auto; overflow: auto; }
+  header { flex-wrap: wrap; row-gap: 2px; }
+  header .live #livetext { display: none; }
+  .timestrip input[type=text] { flex: 1 1 130px; width: auto; min-width: 0; }
+  .timestrip .spacer { display: none; }
+  main { display: block; }
+  aside { max-height: 230px; }
+  #stack { overflow: visible; }
+  .tabs { overflow-x: auto; white-space: nowrap; }
+  .tabs button { flex: none; }
   aside { border-right: 0; border-bottom: 1px solid var(--rule); }
   .cols { grid-template-columns: 1fr; }
   .form { grid-template-columns: 1fr; }
-  .timestrip input[type=text] { width: 170px; }
+  #stackempty { padding: 32px 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>tplot workbench</h1>
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="1.5" y="1.5" width="19" height="19" rx="3" opacity=".35"/><path d="M4 7.5l2.5-2 2.5 2.5 3-3 2.5 2 3.5-1.5"/><path d="M4 12.5h3l1.5-2.5 2 4.5 2-3 2 1h3.5"/><path d="M4 17l3-1 3 1.5 3-2 3 1 2-.5"/></g></svg>
+    <h1>tplot workbench</h1>
+  </div>
   <span class="session" id="session">connecting…</span>
   <span class="live"><span class="pulse" id="pulse"></span><span id="livetext">waiting for the session</span></span>
 </header>
 
-<div class="timestrip">
-  <input type="text" id="t0" placeholder="2015-10-16/13:00:00" aria-label="Start time">
-  <span class="to">to</span>
-  <input type="text" id="t1" placeholder="2015-10-16/13:10:00" aria-label="End time">
-  <button id="apply">Apply range</button>
-  <button id="fullrange">Full range</button>
-  <span class="spacer"></span>
-  <label><input type="checkbox" id="follow" checked> Follow the agent</label>
-  <button id="savepng">Save as tplot PNG</button>
-  <a class="savedlink" id="savedlink" target="_blank" rel="noopener"></a>
+<div class="timebar">
+  <div class="timestrip">
+    <input type="text" id="t0" placeholder="2015-10-16/13:00:00" aria-label="Start time">
+    <span class="to">to</span>
+    <input type="text" id="t1" placeholder="2015-10-16/13:10:00" aria-label="End time">
+    <button id="apply">Apply range</button>
+    <button id="fullrange" class="quiet">Full range</button>
+    <span class="spacer"></span>
+    <label class="toggle"><input type="checkbox" id="follow" checked> Follow the agent</label>
+    <button id="savepng">Save as tplot PNG</button>
+    <a class="savedlink" id="savedlink" target="_blank" rel="noopener"></a>
+  </div>
+  <svg id="overview" role="img" aria-label="Overview of the whole interval. Drag to zoom to a range; click to move the view; double-click for the full range."></svg>
 </div>
 
 <main>
   <aside>
     <div class="filter"><input type="text" id="filter" placeholder="Filter variables (e.g. mms1_*b_gse*)" aria-label="Filter variables"></div>
+    <div class="count" id="varcount"></div>
     <ul id="vars"></ul>
   </aside>
   <section id="stack">
     <div id="panelbar"></div>
     <div id="stackempty">
-      <h2>No panels yet</h2>
-      <p>Tick variables on the left to stack them here, or load data from the Load data tab below.
-      When the agent plots something, it appears here too, with zoom and hover.</p>
+      <h2>Nothing plotted yet</h2>
+      <p>Ask your agent for a plot, for example:</p>
+      <blockquote>Plot OMNI IMF Bz, solar wind speed and SYM-H for 17 March 2015.</blockquote>
+      <p>Its plots appear here as panels you can zoom and hover. You can also tick variables on the
+      left, or load data yourself from the Load data tab below.</p>
     </div>
     <div id="plot"></div>
   </section>
@@ -251,6 +295,7 @@ const $ = (id) => document.getElementById(id);
 const state = {
   vars: [], version: -1, seq: 0, panels: [], trange: null, data: null,
   fresh: new Set(), unseen: 0, missions: {}, pulseTimer: null, zoomTimer: null, drawing: false,
+  fullRange: null, overview: null, overviewKey: "",
 };
 
 // ---------- api ----------
@@ -298,19 +343,31 @@ function globToRe(g) {
   const esc = g.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
   return new RegExp(g.includes("*") || g.includes("?") ? `^${esc}$` : esc, "i");
 }
+const GLYPHS = {
+  line: '<path d="M1 11l3-4 3 3 3-6 3 4 2-2"/>',
+  vector: '<path d="M1 5l3 2 3-2 3 2 3-2 2 1"/><path d="M1 10l3 1 3-2 3 2 3-1 2 1" opacity=".55"/>',
+  spec: '<rect x="1.5" y="2.5" width="5" height="4"/><rect x="9.5" y="2.5" width="5" height="4" opacity=".5"/><rect x="1.5" y="9.5" width="5" height="4" opacity=".5"/><rect x="9.5" y="9.5" width="5" height="4"/>',
+  pseudo: '<path d="M1 10l3-4 3 3 3-5 5 3"/><path d="M1 13l4-2 4 1 6-3" opacity=".55"/>',
+};
+function glyph(v) {
+  const g = v.type === "spectrogram" ? GLYPHS.spec : v.type === "pseudo" ? GLYPHS.pseudo : v.type === "vector" ? GLYPHS.vector : GLYPHS.line;
+  return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true">${g}</svg>`;
+}
 function renderVars() {
   const ul = $("vars");
   const f = $("filter").value.trim();
   const re = f ? globToRe(f) : null;
   const shown = state.vars.filter((v) => !re || re.test(v.name));
   ul.innerHTML = "";
+  $("varcount").textContent = !state.vars.length ? "" : re ? `${shown.length} of ${state.vars.length} variables` :
+    `${state.vars.length} variable${state.vars.length === 1 ? "" : "s"}, ${state.panels.length} on screen`;
   if (!state.vars.length) {
-    ul.innerHTML = `<li class="empty">No tplot variables yet. Load some data below, or ask the agent to.</li>`;
+    ul.innerHTML = `<li class="empty">No tplot variables yet. Ask your agent to load some, or use the Load data tab.</li>`;
     return;
   }
   for (const v of shown) {
     const li = document.createElement("li");
-    if (state.fresh.has(v.name)) li.className = "fresh";
+    li.className = state.fresh.has(v.name) ? "fresh" : state.panels.includes(v.name) ? "on" : "";
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.checked = state.panels.includes(v.name);
@@ -323,7 +380,9 @@ function renderVars() {
     meta.className = "vmeta";
     meta.textContent = describeVar(v);
     if (v.start) meta.title = `${toStrip(v.start)} to ${toStrip(v.end)}`;
-    li.append(cb, name, meta);
+    const g = document.createElement("span");
+    g.className = "glyph"; g.innerHTML = glyph(v); g.title = v.type;
+    li.append(cb, g, name, meta);
     ul.append(li);
   }
 }
@@ -333,7 +392,9 @@ async function refreshState() {
   state.vars = s.variables;
   if (state.version >= 0) for (const v of s.variables) if (!before.has(v.name)) state.fresh.add(v.name);
   state.version = s.version;
-  $("session").textContent = `${s.variables.length} variable${s.variables.length === 1 ? "" : "s"} in this session`;
+  const starts = s.variables.map((v) => v.start).filter(Boolean).sort(), ends = s.variables.map((v) => v.end).filter(Boolean).sort();
+  $("session").textContent = !s.variables.length ? "empty session" :
+    `${s.variables.length} variable${s.variables.length === 1 ? "" : "s"}` + (starts.length ? `, ${toStrip(starts[0]).slice(0, 10)} to ${toStrip(ends[ends.length - 1]).slice(0, 10)}` : "");
   $("session").title = `Plots and exports go to ${s.output_dir}`;
   // drop panels whose variables are gone
   const names = new Set(s.variables.map((v) => v.name));
@@ -359,7 +420,9 @@ function renderBar() {
   state.panels.forEach((p, i) => {
     const c = document.createElement("span");
     c.className = "chip";
-    c.append(p);
+    const n = document.createElement("span");
+    n.className = "n"; n.textContent = i + 1;
+    c.append(n, p);
     const mk = (label, title, fn, off) => {
       const b = document.createElement("button");
       b.textContent = label; b.title = title; b.setAttribute("aria-label", `${title}: ${p}`);
@@ -376,8 +439,9 @@ function css(v) { return getComputedStyle(document.documentElement).getPropertyV
 
 async function draw(keepRange) {
   renderBar();
+  renderVars();
   $("stackempty").style.display = state.panels.length ? "none" : "block";
-  if (!state.panels.length) { Plotly.purge("plot"); return; }
+  if (!state.panels.length) { Plotly.purge("plot"); state.overview = null; state.overviewKey = ""; drawOverview(); return; }
   const r = state.trange;
   const q = new URLSearchParams({names: state.panels.join(","), max_points: 4000});
   if (r) { q.set("t0", r[0]); q.set("t1", r[1]); }
@@ -385,7 +449,10 @@ async function draw(keepRange) {
   try { res = await get(`/api/panels?${q}`); }
   catch (e) { flash(`Could not draw: ${e.message}`, true); return; }
   if (!r && res.full_range) setStrip(res.full_range);
+  if (res.full_range) state.fullRange = res.full_range;
   render(res.panels, keepRange);
+  const key = `${state.panels[0]}@${state.version}`;
+  if (key !== state.overviewKey) { state.overviewKey = key; refreshOverview(); }
 }
 
 function render(panels, keepRange) {
@@ -396,10 +463,12 @@ function render(panels, keepRange) {
   const traces = [];
   const layout = {
     paper_bgcolor: sheet, plot_bgcolor: sheet, font: {family: css("--sans"), color: ink, size: 12},
+    hoverlabel: {font: {family: css("--mono"), size: 11.5}, bgcolor: sheet, bordercolor: rule},
     margin: {l: 92, r: 110, t: 12, b: 44}, showlegend: false, hovermode: "x unified",
     height: Math.max(320, 165 * n + 60), annotations: [], shapes: [],
     // one time axis for the whole stack, drawn under the bottom panel (as tplot does)
-    xaxis: {type: "date", gridcolor: rule, linecolor: muted, ticks: "outside", tickcolor: muted, showline: false,
+    xaxis: {type: "date", gridcolor: css("--hair"), linecolor: muted, ticks: "outside", tickcolor: muted, showline: false,
+            tickfont: {family: css("--mono"), size: 11, color: muted},
             anchor: n === 1 ? "y" : `y${n}`, hoverformat: "%Y-%m-%d %H:%M:%S.%L"},
   };
   if (keepRange && state.xrange) layout.xaxis.range = state.xrange;
@@ -412,7 +481,8 @@ function render(panels, keepRange) {
     const ax = i === 0 ? "y" : `y${i + 1}`, key = i === 0 ? "yaxis" : `yaxis${i + 1}`;
     const o = p.options;
     layout[key] = {
-      domain: dom, anchor: "x", gridcolor: rule, showline: false, ticks: "outside",
+      domain: dom, anchor: "x", gridcolor: css("--hair"), showline: false, ticks: "outside",
+      tickfont: {family: css("--mono"), size: 11, color: muted},
       tickcolor: muted, zeroline: false, type: o.ylog ? "log" : "linear", automargin: false,
       title: {text: o.ysubtitle ? `${o.ytitle}<br><span style="font-size:11px">${o.ysubtitle}</span>` : o.ytitle, font: {size: 12}},
     };
@@ -435,7 +505,7 @@ function render(panels, keepRange) {
       if (p.show_legend) {
         p.traces.forEach((t, k) => layout.annotations.push({
           xref: "paper", yref: "paper", x: 1.012, y: dom[1] - 0.012 - k * 0.034, xanchor: "left", yanchor: "top",
-          text: `<span style="color:${t.color || ink}">━</span> ${t.name}`, showarrow: false, font: {size: 11},
+          text: `<span style="color:${traceColor(t.color)}">━</span> ${t.name}`, showarrow: false, font: {size: 11},
         }));
       }
     } else {
@@ -445,7 +515,7 @@ function render(panels, keepRange) {
   });
   state.drawing = true;
   Plotly.react("plot", traces, layout, {displaylogo: false, responsive: true,
-    modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d"]}).then(() => { state.drawing = false; });
+    modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d"]}).then(() => { state.drawing = false; drawOverview(); });
   const plot = $("plot");
   if (!plot._wired) {
     plot._wired = true;
@@ -455,14 +525,17 @@ function render(panels, keepRange) {
       if (a && b) {
         state.xrange = [a, b];
         clearTimeout(state.zoomTimer);
+        drawOverview();
         state.zoomTimer = setTimeout(() => zoomTo([a, b]), 350);
       } else if (ev["xaxis.autorange"]) { state.xrange = null; state.trange = null; draw(); }
     });
   }
 }
+const INKS = new Set(["#1d232a", "#000000", "#000", "black", "k"]);
+const traceColor = (c) => !c || INKS.has(String(c).toLowerCase()) ? css("--ink") : c;
 function lineTrace(t, ax) {
   return {type: "scatter", mode: "lines", x: t.x, y: t.y, name: t.name, xaxis: "x", yaxis: ax,
-          line: {width: 1, color: t.color || css("--ink")}, connectgaps: false};
+          line: {width: 1, color: traceColor(t.color)}, connectgaps: false};
 }
 async function zoomTo(r) {
   const s = (x) => x.replace(" ", "/").slice(0, 23);
@@ -470,6 +543,116 @@ async function zoomTo(r) {
   setStrip(state.trange);
   await draw(true);  // refetch the window at full detail
 }
+
+// ---------- overview: the whole interval, with the current view as a window ----------
+const ms = (iso) => Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : String(iso).replace("/", "T").replace(" ", "T") + "Z");
+const isoOf = (t) => new Date(t).toISOString().replace("T", " ").slice(0, 23);
+async function refreshOverview() {
+  const first = state.panels[0];
+  if (!first) { state.overview = null; drawOverview(); return; }
+  try {
+    const r = await get(`/api/panels?names=${encodeURIComponent(first)}&max_points=700`);
+    state.overview = r.panels[0];
+    if (r.full_range) state.fullRange = r.full_range;
+  } catch (e) { state.overview = null; }
+  drawOverview();
+}
+function viewRange() {
+  if (state.xrange) return state.xrange.map(ms);
+  if (state.trange) return state.trange.map(ms);
+  return state.fullRange ? state.fullRange.map(ms) : null;
+}
+function niceStep(span, target) {
+  const H = 3600e3, D = 24 * H;
+  const steps = [60e3, 5 * 60e3, 15 * 60e3, 30 * 60e3, H, 3 * H, 6 * H, 12 * H, D, 2 * D, 7 * D, 14 * D, 30 * D];
+  return steps.find((s) => span / s <= target) || steps[steps.length - 1];
+}
+function overviewSpan(svg) {
+  // Line the strip up with the panels' time axis when it is on screen; else use the page gutters.
+  const sv = svg.getBoundingClientRect(), xa = document.querySelector("#plot .xy .nsewdrag, #plot .nsewdrag");
+  if (xa && window.innerWidth > 820) {
+    const r = xa.getBoundingClientRect();
+    return [r.left - sv.left, r.right - sv.left];
+  }
+  return [16, sv.width - 16];
+}
+function drawOverview() {
+  const svg = $("overview");
+  const [left, right] = overviewSpan(svg);
+  const pad = left, W = right - left, H = 44, top = 4, plotH = 26;
+  svg.setAttribute("viewBox", `${-pad} 0 ${svg.clientWidth} ${H + 8}`);
+  if (!state.fullRange || W <= 0) { svg.innerHTML = ""; return; }
+  const [f0, f1] = state.fullRange.map(ms), span = Math.max(1, f1 - f0);
+  const X = (t) => ((t - f0) / span) * W;
+  let body = `<rect class="band" x="0" y="${top}" width="${W}" height="${plotH}" rx="3"/>`;
+  const p = state.overview;
+  const tr = p && (p.kind === "line" ? p.traces[0] : p.overlay && p.overlay[0]);
+  if (tr) {
+    const ys = tr.y.filter((v) => v !== null && isFinite(v));
+    const lo = Math.min(...ys), hi = Math.max(...ys), yr = hi - lo || 1;
+    let d = "", pen = false;
+    tr.x.forEach((x, k) => {
+      const v = tr.y[k];
+      if (v === null || !isFinite(v)) { pen = false; return; }
+      d += `${pen ? "L" : "M"}${X(ms(x)).toFixed(1)},${(top + plotH - 2 - ((v - lo) / yr) * (plotH - 4)).toFixed(1)}`;
+      pen = true;
+    });
+    body += `<path class="trace" d="${d}"/>`;
+  }
+  const step = niceStep(span, Math.max(3, Math.floor(W / 110)));
+  const first = Math.ceil(f0 / step) * step;
+  for (let t = first; t <= f1; t += step) {
+    const d = new Date(t), x = X(t).toFixed(1);
+    const day = d.toISOString().slice(5, 10), hm = d.toISOString().slice(11, 16);
+    const label = step >= 864e5 || hm === "00:00" ? day : hm;
+    const anchor = X(t) < 20 ? "start" : X(t) > W - 20 ? "end" : "middle";
+    body += `<line class="tick" x1="${x}" x2="${x}" y1="${top + plotH}" y2="${top + plotH + 4}"/><text x="${x}" y="${H + 5}" text-anchor="${anchor}">${label}</text>`;
+  }
+  const v = viewRange();
+  if (v) {
+    const a = Math.max(0, X(v[0])), b = Math.min(W, X(v[1]));
+    body += `<rect class="outside" x="0" y="${top}" width="${a}" height="${plotH}"/>` +
+            `<rect class="outside" x="${b}" y="${top}" width="${Math.max(0, W - b)}" height="${plotH}"/>` +
+            `<rect class="window" x="${a}" y="${top - 1}" width="${Math.max(2, b - a)}" height="${plotH + 2}" rx="3"/>`;
+  }
+  svg.innerHTML = body + `<rect class="drag" id="ovdrag" x="0" y="${top}" width="0" height="${plotH}" style="display:none"/>`;
+  svg._map = {pad, W, f0, span};
+}
+(function wireOverview() {
+  const svg = $("overview");
+  let start = null;
+  const tAt = (e) => {
+    const m = svg._map, r = svg.getBoundingClientRect();
+    const x = Math.min(m.W, Math.max(0, e.clientX - r.left - m.pad));
+    return {x, t: m.f0 + (x / m.W) * m.span};
+  };
+  svg.addEventListener("pointerdown", (e) => {
+    if (!svg._map || !state.panels.length) return;
+    start = tAt(e); svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener("pointermove", (e) => {
+    if (!start) return;
+    const now = tAt(e), r = $("ovdrag");
+    if (!r) return;
+    r.style.display = "";
+    r.setAttribute("x", Math.min(start.x, now.x)); r.setAttribute("width", Math.abs(now.x - start.x));
+  });
+  svg.addEventListener("pointerup", (e) => {
+    if (!start) return;
+    const end = tAt(e), s0 = start;
+    start = null;
+    let a, b;
+    if (Math.abs(end.x - s0.x) > 4) { a = Math.min(s0.t, end.t); b = Math.max(s0.t, end.t); }
+    else {  // a click moves the current window so that it is centred there
+      const v = viewRange(), half = (v[1] - v[0]) / 2, m = svg._map;
+      a = Math.max(m.f0, s0.t - half); b = Math.min(m.f0 + m.span, a + 2 * half); a = b - 2 * half;
+    }
+    state.xrange = [isoOf(a), isoOf(b)];
+    zoomTo(state.xrange);
+  });
+  svg.addEventListener("dblclick", () => $("fullrange").click());
+  window.addEventListener("resize", () => drawOverview());
+})();
 
 // ---------- details / script ----------
 async function showDetails(name) {
@@ -509,7 +692,7 @@ function feedItem(e) {
   li.className = `${e.source}${e.ok ? "" : " err"}`;
   const when = new Date(e.time * 1000).toLocaleTimeString([], {hour12: false});
   const what = e.ok ? e.summary : `failed: ${e.summary}`;
-  li.innerHTML = `<span class="when"></span><span class="who"></span><span><span class="tool"></span> <span class="what"></span></span>`;
+  li.innerHTML = `<span class="dot"></span><span class="when"></span><span class="who"></span><span><span class="tool"></span><span class="times"></span> <span class="what"></span></span>`;
   li.querySelector(".when").textContent = when;
   li.querySelector(".who").textContent = e.source === AGENT_NAME ? "Agent" : "You";
   li.querySelector(".tool").textContent = e.tool;
@@ -531,7 +714,16 @@ async function poll() {
     const feed = $("feed");
     let agentPlot = null;
     for (const e of r.events) {
-      feed.prepend(feedItem(e));
+      const key = `${e.source}|${e.tool}|${e.ok}|${e.summary}`, top = feed.firstChild;
+      if (top && top.dataset.key === key) {
+        top.dataset.n = +(top.dataset.n || 1) + 1;
+        top.querySelector(".times").textContent = ` ×${top.dataset.n}`;
+        top.querySelector(".when").textContent = new Date(e.time * 1000).toLocaleTimeString([], {hour12: false});
+      } else {
+        const li = feedItem(e);
+        li.dataset.key = key;
+        feed.prepend(li);
+      }
       if (e.source === AGENT_NAME) {
         pulse();
         $("livetext").textContent = `Agent ran ${e.tool}`;

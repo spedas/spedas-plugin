@@ -1,6 +1,6 @@
 [project]
 name = "spedas-tplot-mcp"
-version = "0.2.0"
+version = "0.2.1"
 description = "MCP server that drives PySPEDAS tplot: load mission data, inspect and transform tplot variables, and plot them."
 readme = "README.md"
 requires-python = ">=3.10"

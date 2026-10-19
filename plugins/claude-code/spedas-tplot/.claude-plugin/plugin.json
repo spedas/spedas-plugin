@@ -1,6 +1,6 @@
 {
   "name": "spedas-tplot",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "PySPEDAS tplot for agents: load space-physics mission data into tplot variables, inspect, transform and plot them, and get a replayable PySPEDAS script.",
   "author": {
     "name": "Zesen Huang",
